@@ -1,0 +1,33 @@
+{
+  "model_name": "CIFAR-10 ResNet CNN",
+  "input_shape": [
+    32,
+    32,
+    3
+  ],
+  "classes": [
+    "airplane",
+    "automobile",
+    "bird",
+    "cat",
+    "deer",
+    "dog",
+    "frog",
+    "horse",
+    "ship",
+    "truck"
+  ],
+  "normalization": {
+    "mean": [
+      0.4914,
+      0.4822,
+      0.4465
+    ],
+    "std": [
+      0.247,
+      0.2435,
+      0.2616
+    ]
+  },
+  "accuracy": "~85%"
+}
