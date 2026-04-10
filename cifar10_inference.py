@@ -54,11 +54,35 @@ class CIFAR10ResNet:
         vars_group = group["vars"]
         return [vars_group[key][()].astype(np.float32) for key in sorted(vars_group.keys(), key=int)]
 
+    @staticmethod
+    def _validate_weights_file(weights_path: Path) -> None:
+        if not weights_path.exists():
+            raise FileNotFoundError(f"Missing weights file: {weights_path}")
+
+        with weights_path.open("rb") as fh:
+            header = fh.read(128)
+
+        if header.startswith(b"version https://git-lfs.github.com/spec/v1"):
+            raise RuntimeError(
+                f"{weights_path} is a Git LFS pointer, not the real HDF5 model file. "
+                "Railway needs the actual binary weights committed to git. "
+                "Remove LFS tracking for model.weights.h5, re-add the file as a normal git blob, "
+                "and redeploy."
+            )
+
+        if not header.startswith(b"\x89HDF\r\n\x1a\n"):
+            raise RuntimeError(
+                f"{weights_path} is not a valid HDF5 file. "
+                "Make sure the actual model.weights.h5 binary is present in the deployed build."
+            )
+
     def _load_weights(
         self, weights_path: Path
     ) -> tuple[list[np.ndarray], list[BatchNormWeights], np.ndarray, np.ndarray]:
         conv_kernels: list[np.ndarray] = []
         bn_layers: list[BatchNormWeights] = []
+
+        self._validate_weights_file(weights_path)
 
         with h5py.File(weights_path, "r") as weights_file:
             layers_group = weights_file["layers"]

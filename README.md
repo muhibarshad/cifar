@@ -23,6 +23,9 @@ npm run dev
 
 Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` if your backend is not on `http://localhost:8000`.
 
+Deployment note:
+- `model.weights.h5` must be committed as the real binary file, not a Git LFS pointer. Railway will crash if it receives the pointer text instead of the actual HDF5 data.
+
 The API exposes:
 
 - `GET /health`
