@@ -1,25 +1,36 @@
----
-title: CIFAR 10
-emoji: 🐠
-colorFrom: gray
-colorTo: blue
-sdk: gradio
-sdk_version: 6.11.0
-app_file: app.py
-pinned: false
----
+# CIFAR-10 Vision Stack
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+Next.js frontend + FastAPI backend for running the saved CIFAR-10 model locally.
 
-## Local inference
+## Run the full stack locally
 
-The model is now runnable locally from the saved weights and JSON config.
+Backend:
 
 ```bash
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python predict_local.py img.jpg
+./.venv/bin/python app.py
 ```
 
-This prints the top-5 CIFAR-10 classes for `img.jpg`.
-If you want the browser UI instead, run `./.venv/bin/python app.py`.
+Frontend:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+
+Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` if your backend is not on `http://localhost:8000`.
+
+The API exposes:
+
+- `GET /health`
+- `GET /classes`
+- `POST /predict`
+
+For a quick command-line test without the browser, run:
+
+```bash
+./.venv/bin/python predict_local.py img.jpg
+```

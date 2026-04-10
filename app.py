@@ -1,27 +1,12 @@
 from __future__ import annotations
 
-try:
-    import huggingface_hub
+import io
+import os
 
-    if not hasattr(huggingface_hub, "HfFolder"):
-        class HfFolder:  # pragma: no cover - compatibility shim for newer hub versions
-            @staticmethod
-            def get_token():
-                return None
-
-            @staticmethod
-            def save_token(token):
-                return None
-
-            @staticmethod
-            def delete_token():
-                return None
-
-        huggingface_hub.HfFolder = HfFolder
-except ImportError:
-    pass
-
-import gradio as gr
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from PIL import Image, UnidentifiedImageError
 
 from cifar10_inference import CIFAR10ResNet
 
@@ -29,31 +14,92 @@ from cifar10_inference import CIFAR10ResNet
 MODEL = CIFAR10ResNet()
 
 
-def predict(image):
-    if image is None:
-        return {}
+def _parse_cors_origins(raw_value: str | None) -> list[str]:
+    if not raw_value:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
 
-    probabilities = MODEL.predict(image)
+    origins = [origin.strip() for origin in raw_value.split(",")]
+    return [origin for origin in origins if origin]
+
+
+app = FastAPI(title="CIFAR-10 Prediction API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_parse_cors_origins(os.getenv("CORS_ORIGINS")),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class PredictionItem(BaseModel):
+    label: str
+    probability: float
+
+
+class PredictionResponse(BaseModel):
+    filename: str | None = None
+    top_class: str
+    top_probability: float
+    predictions: list[PredictionItem]
+
+
+@app.get("/")
+def root() -> dict[str, str]:
     return {
-        MODEL.class_names[index]: float(probabilities[index])
-        for index in range(len(MODEL.class_names))
+        "message": "CIFAR-10 Prediction API",
+        "health": "/health",
+        "predict": "/predict",
     }
 
 
-with gr.Blocks(title="CIFAR-10 Image Classifier", theme=gr.themes.Soft()) as demo:
-    gr.Markdown(
-        """
-        # CIFAR-10 Image Classifier
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
 
-        Upload an image and the model will classify it into one of 10 CIFAR-10 classes.
-        """
+
+@app.get("/classes")
+def classes() -> dict[str, list[str]]:
+    return {"classes": MODEL.class_names}
+
+
+@app.post("/predict", response_model=PredictionResponse)
+async def predict_image(file: UploadFile = File(...)) -> PredictionResponse:
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file uploaded.")
+
+    try:
+        with Image.open(io.BytesIO(content)) as pil_image:
+            probabilities = MODEL.predict_pil(pil_image)
+    except UnidentifiedImageError as exc:
+        raise HTTPException(status_code=400, detail="Unsupported image file.") from exc
+
+    ranked_indices = list(probabilities.argsort()[::-1])
+    predictions = [
+        PredictionItem(
+            label=MODEL.class_names[index],
+            probability=float(probabilities[index]),
+        )
+        for index in ranked_indices
+    ]
+    top_prediction = predictions[0]
+
+    return PredictionResponse(
+        filename=file.filename,
+        top_class=top_prediction.label,
+        top_probability=top_prediction.probability,
+        predictions=predictions,
     )
 
-    with gr.Row():
-        image_input = gr.Image(type="pil", label="Upload image", height=320)
-        label_output = gr.Label(num_top_classes=5, label="Predictions")
-
-    image_input.change(fn=predict, inputs=image_input, outputs=label_output)
 
 if __name__ == "__main__":
-    demo.launch()
+    import uvicorn
+
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=True,
+    )

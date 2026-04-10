@@ -1,0 +1,2 @@
+./.venv/bin/python predict_local.py myphoto.png
+

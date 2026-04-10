@@ -8,12 +8,18 @@ venv/
 env/
 ENV/
 
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+
 # Test and tool caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+*.tsbuildinfo
 
 # OS and editor files
 .DS_Store

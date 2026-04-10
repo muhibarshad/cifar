@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import h5py
 import numpy as np
@@ -170,6 +169,10 @@ class CIFAR10ResNet:
         array = (array - self.mean) / self.std
         return np.expand_dims(array, axis=0)
 
+    def predict_pil(self, image: Image.Image) -> np.ndarray:
+        batch = self.preprocess(image)
+        return self.forward(batch)[0]
+
     def forward(self, batch: np.ndarray) -> np.ndarray:
         x = self._conv2d(batch, self.conv_kernels[0], stride=1)
         x = self._batch_norm(x, self.bn_layers[0])
@@ -188,9 +191,9 @@ class CIFAR10ResNet:
 
     def predict(self, image: Image.Image | str | Path) -> np.ndarray:
         if isinstance(image, (str, Path)):
-            image = Image.open(image)
-        batch = self.preprocess(image)
-        return self.forward(batch)[0]
+            with Image.open(image) as pil_image:
+                return self.predict_pil(pil_image)
+        return self.predict_pil(image)
 
     def top_k(self, image: Image.Image | str | Path, k: int = 5) -> list[tuple[str, float]]:
         probabilities = self.predict(image)

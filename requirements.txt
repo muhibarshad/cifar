@@ -1,5 +1,6 @@
-gradio==4.19.0
+fastapi==0.115.6
 h5py==3.16.0
 numpy==1.26.4
 Pillow==10.2.0
-requests==2.33.1
+python-multipart==0.0.20
+uvicorn==0.34.0
